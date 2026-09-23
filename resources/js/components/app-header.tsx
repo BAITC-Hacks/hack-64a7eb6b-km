@@ -34,7 +34,6 @@ import { useInitials } from '@/hooks/use-initials';
 import { usePermissions } from '@/hooks/use-permissions';
 import { cn, toUrl } from '@/lib/utils';
 import { dashboard } from '@/routes';
-import { index as runs } from '@/routes/runs';
 import type { BreadcrumbItem, NavItem } from '@/types';
 
 type Props = {
@@ -47,7 +46,6 @@ const mainNavItems: NavItem[] = [
         href: dashboard(),
         icon: LayoutGrid,
     },
-    { title: 'AI-запуски', href: runs(), icon: LayoutGrid },
 ];
 
 const rightNavItems: NavItem[] = [
