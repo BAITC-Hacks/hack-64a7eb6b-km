@@ -3,6 +3,7 @@ import { Copy, LayoutGrid } from 'lucide-react';
 import { useState } from 'react';
 import {
     DecisionList,
+    DistrictScore,
     MethodNote,
     delta,
     number,
@@ -68,44 +69,12 @@ export default function Welcome({
             <main className="simulator min-h-dvh overflow-x-clip bg-background text-foreground">
                 <h1 className="sr-only">Карта Астаны и городские сценарии</h1>
                 <SimulatorHeader onRules={() => setRulesOpen(true)} />
-                <section className="flex flex-wrap items-center justify-between gap-4 border-b px-4 py-4 sm:px-7">
-                    <div className="min-w-0 flex-1">
-                        {scenario ? (
-                            <>
-                                <label
-                                    htmlFor="map-scenario"
-                                    className="mb-1 block text-xs text-muted-foreground"
-                                >
-                                    Сохранённый сценарий
-                                </label>
-                                <select
-                                    id="map-scenario"
-                                    className="sim-select w-full max-w-lg"
-                                    value={scenario.id}
-                                    onChange={(event) =>
-                                        router.visit(
-                                            map({
-                                                query: {
-                                                    scenario:
-                                                        event.target.value,
-                                                },
-                                            }),
-                                        )
-                                    }
-                                >
-                                    {recentScenarios.map((item) => (
-                                        <option key={item.id} value={item.id}>
-                                            {item.title}
-                                        </option>
-                                    ))}
-                                </select>
-                            </>
-                        ) : (
-                            <h2 className="font-semibold">
-                                Исходное состояние города
-                            </h2>
-                        )}
-                    </div>
+                <section className="flex flex-wrap items-center justify-end gap-4 border-b px-4 py-4 sm:px-7">
+                    {!scenario && (
+                        <h2 className="min-w-0 flex-1 font-semibold">
+                            Исходное состояние города
+                        </h2>
+                    )}
                     <Button asChild variant="outline">
                         <Link href={dashboard()}>
                             <LayoutGrid className="size-4" />
@@ -208,6 +177,41 @@ export default function Welcome({
                                         {result.critical.length}
                                     </p>
                                 </section>
+                                {scenario && (
+                                    <div className="space-y-4">
+                                        <label
+                                            htmlFor="map-scenario"
+                                            className="block text-sm font-semibold"
+                                        >
+                                            Сохранённый сценарий
+                                        </label>
+                                        <select
+                                            id="map-scenario"
+                                            className="sim-select w-full appearance-auto"
+                                            value={scenario.id}
+                                            onChange={(event) =>
+                                                router.visit(
+                                                    map({
+                                                        query: {
+                                                            scenario:
+                                                                event.target
+                                                                    .value,
+                                                        },
+                                                    }),
+                                                )
+                                            }
+                                        >
+                                            {recentScenarios.map((item) => (
+                                                <option
+                                                    key={item.id}
+                                                    value={item.id}
+                                                >
+                                                    {item.title}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                                 {district && (
                                     <section
                                         className="space-y-4"
@@ -221,7 +225,7 @@ export default function Welcome({
                                         </label>
                                         <select
                                             id="map-district"
-                                            className="sim-select w-full"
+                                            className="sim-select w-full appearance-auto"
                                             value={district.id}
                                             onChange={(event) =>
                                                 setSelectedDistrict(
@@ -238,19 +242,14 @@ export default function Welcome({
                                                 </option>
                                             ))}
                                         </select>
-                                        <p className="text-sm">
-                                            Индекс района:{' '}
-                                            <strong>
-                                                {number(district.score)}
-                                            </strong>
-                                            {scenario && before && (
-                                                <>
-                                                    {' '}
-                                                    · Было{' '}
-                                                    {number(before.score)}
-                                                </>
-                                            )}
-                                        </p>
+                                        <DistrictScore
+                                            score={district.score}
+                                            baselineScore={
+                                                scenario
+                                                    ? before?.score
+                                                    : undefined
+                                            }
+                                        />
                                         <dl className="grid gap-2 text-sm">
                                             {Object.entries(
                                                 dataset.indicators,

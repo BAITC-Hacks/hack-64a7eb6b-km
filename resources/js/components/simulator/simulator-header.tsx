@@ -14,7 +14,6 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useInitials } from '@/hooks/use-initials';
-import { useAppearance } from '@/hooks/use-appearance';
 import { create } from '@/routes/scenarios';
 import { number } from '@/components/simulation/results';
 
@@ -24,7 +23,6 @@ import { dashboard, login } from '@/routes';
 export function SimulatorHeader({ onRules }: { onRules: () => void }) {
     const { auth } = usePage().props;
     const initials = useInitials();
-    const { resolvedAppearance, updateAppearance } = useAppearance();
     return (
         <header className="flex min-h-19 flex-wrap items-center justify-between gap-x-5 border-b border-border px-4 sm:px-7 lg:grid lg:grid-cols-[auto_1fr_auto] xl:px-8">
             <div className="flex items-center gap-3 py-4">
@@ -80,19 +78,6 @@ export function SimulatorHeader({ onRules }: { onRules: () => void }) {
                                     ? 'Рабочее пространство'
                                     : 'Войти в аккаунт'}
                             </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                            onSelect={() =>
-                                updateAppearance(
-                                    resolvedAppearance === 'dark'
-                                        ? 'light'
-                                        : 'dark',
-                                )
-                            }
-                        >
-                            {resolvedAppearance === 'dark'
-                                ? 'Светлая тема'
-                                : 'Тёмная тема'}
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>

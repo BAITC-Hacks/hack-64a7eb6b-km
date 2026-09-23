@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
 import {
     ArrowDownRight,
+    ArrowRight,
     ArrowUpRight,
     Building2,
     CircleHelp,
+    Minus,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { Dataset, Selection, SimulationResult } from '@/types/simulation';
@@ -119,6 +121,93 @@ function Metric({
     );
 }
 
+export function DistrictScore({
+    score,
+    baselineScore,
+}: {
+    score: string | number;
+    baselineScore?: string | number;
+}) {
+    const change =
+        baselineScore === undefined
+            ? null
+            : Number((Number(score) - Number(baselineScore)).toFixed(2));
+    const ChangeIcon =
+        change === null || change === 0
+            ? Minus
+            : change > 0
+              ? ArrowUpRight
+              : ArrowDownRight;
+    const changeLabel =
+        change === null || change === 0
+            ? 'Без изменений'
+            : change > 0
+              ? 'Рост'
+              : 'Снижение';
+    const changeClasses =
+        change === null || change === 0
+            ? 'border-border bg-muted text-muted-foreground'
+            : change > 0
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
+              : 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/50 dark:text-rose-300';
+
+    return (
+        <section
+            className="rounded-xl border bg-muted/20 p-4"
+            aria-label="Индекс района"
+            aria-live="polite"
+        >
+            <h3 className="text-xs font-medium text-muted-foreground">
+                Индекс района
+            </h3>
+            <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    {baselineScore !== undefined && (
+                        <>
+                            <div>
+                                <p className="text-xs text-muted-foreground">
+                                    Было
+                                </p>
+                                <p className="mt-1 text-xl text-muted-foreground tabular-nums">
+                                    {number(baselineScore)}
+                                </p>
+                            </div>
+                            <ArrowRight
+                                className="mt-4 size-4 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                            />
+                        </>
+                    )}
+                    <div>
+                        <p className="text-xs text-muted-foreground">
+                            {baselineScore === undefined
+                                ? 'Текущее значение'
+                                : 'Стало'}
+                        </p>
+                        <p className="mt-1 text-2xl font-semibold tabular-nums">
+                            {number(score)}
+                        </p>
+                    </div>
+                </div>
+                {change !== null && (
+                    <Badge
+                        variant="outline"
+                        className={`gap-1.5 px-2.5 py-1 ${changeClasses}`}
+                    >
+                        <ChangeIcon aria-hidden="true" />
+                        {changeLabel}
+                        {change !== 0 && (
+                            <span className="tabular-nums">
+                                {delta(change)}
+                            </span>
+                        )}
+                    </Badge>
+                )}
+            </div>
+        </section>
+    );
+}
+
 export function DistrictCharts({
     result,
     baseline,
@@ -134,6 +223,7 @@ export function DistrictCharts({
             </p>
             <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
                 {result.districts.map((district) => {
+                    const isLowScore = Number(district.score) < 50;
                     const before = baseline?.districts.find(
                         (item) => item.id === district.id,
                     );
@@ -141,7 +231,9 @@ export function DistrictCharts({
                         <article key={district.id}>
                             <div className="flex items-baseline justify-between gap-2">
                                 <h3 className="font-medium">{district.name}</h3>
-                                <span className="text-sm font-semibold tabular-nums">
+                                <span
+                                    className={`text-sm font-semibold tabular-nums ${isLowScore ? 'text-yellow-700 dark:text-yellow-400' : ''}`}
+                                >
                                     {number(district.score)}
                                 </span>
                             </div>
@@ -154,7 +246,7 @@ export function DistrictCharts({
                                 aria-valuenow={Number(district.score)}
                             >
                                 <div
-                                    className="h-full rounded-full bg-emerald-600"
+                                    className={`h-full rounded-full ${isLowScore ? 'bg-yellow-500' : 'bg-emerald-600'}`}
                                     style={{ width: `${district.score}%` }}
                                 />
                             </div>

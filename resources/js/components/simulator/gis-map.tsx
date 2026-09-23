@@ -968,16 +968,6 @@ export function GisMap({ selectedDistrict, onSelectDistrict, result }: Props) {
             report(reason);
         }
     }
-    function exportLayer(layer: GisLayer) {
-        if (!layer.version_id) return;
-        const link = document.createElement('a');
-        link.href = FeatureApi.exportMethod.url(layer.id, {
-            query: { version: layer.version_id },
-        });
-        link.download = `${layer.title}.geojson`;
-        link.click();
-        setNotice('Начата загрузка GeoJSON выбранного снимка.');
-    }
     const ownLayers = catalog.layers.filter((layer) => layer.can_edit);
     const groups = [
         ...new Set(
@@ -1238,20 +1228,6 @@ export function GisMap({ selectedDistrict, onSelectDistrict, result }: Props) {
                                                           layer.status
                                                       ] ?? layer.status)}
                                         </p>
-                                        {layer.version_id &&
-                                            !layer.complete && (
-                                                <p className="mt-1 pl-5 text-[10px] text-amber-700 dark:text-amber-400">
-                                                    Неполный seed ·{' '}
-                                                    {[
-                                                        'raster',
-                                                        'vector_tile',
-                                                    ].includes(layer.kind)
-                                                        ? `${Number(layer.progress?.archive?.tiles ?? 0).toLocaleString('ru-RU')} / ${layer.coverage?.expected_tiles?.toLocaleString('ru-RU') ?? '…'} тайлов`
-                                                        : `${layer.count?.toLocaleString('ru-RU')} / ${layer.expected_count?.toLocaleString('ru-RU') ?? '…'} объектов`}
-                                                    . Пропуски не означают
-                                                    удаление.
-                                                </p>
-                                            )}
                                         {layer.error &&
                                             layer.progress?.status !==
                                                 'building' && (
@@ -1307,22 +1283,6 @@ export function GisMap({ selectedDistrict, onSelectDistrict, result }: Props) {
                                                 <p className="my-1">
                                                     {layer.attribution}
                                                 </p>
-                                                <a
-                                                    className="my-1 block underline"
-                                                    href={LayerApi.metadata.url(
-                                                        layer.id,
-                                                        {
-                                                            query: {
-                                                                version:
-                                                                    layer.version_id,
-                                                            },
-                                                        },
-                                                    )}
-                                                    download
-                                                >
-                                                    Метаданные, стили и система
-                                                    координат
-                                                </a>
                                                 <p className="my-1">
                                                     {layer.kind === 'raster'
                                                         ? 'Локальный снимок изображения до z18.'
@@ -1374,20 +1334,6 @@ export function GisMap({ selectedDistrict, onSelectDistrict, result }: Props) {
                                                             </span>
                                                         </div>
                                                     ))}
-                                                {[
-                                                    'vector',
-                                                    'custom',
-                                                    'table',
-                                                ].includes(layer.kind) && (
-                                                    <button
-                                                        className="mt-2 underline"
-                                                        onClick={() =>
-                                                            exportLayer(layer)
-                                                        }
-                                                    >
-                                                        Скачать GeoJSON
-                                                    </button>
-                                                )}
                                             </details>
                                         )}
                                     </div>

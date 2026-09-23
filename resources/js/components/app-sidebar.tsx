@@ -18,11 +18,11 @@ import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
     {
-        title: 'Город и сценарии',
+        title: 'Дашборд',
         href: dashboard(),
         icon: LayoutGrid,
     },
-    { title: 'Карта', href: map(), icon: Map },
+    { title: 'Карта (Симулятор)', href: map(), icon: Map },
 ];
 
 export function AppSidebar() {
