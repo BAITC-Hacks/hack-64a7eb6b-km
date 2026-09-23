@@ -47,7 +47,7 @@ PHPUnit принудительно задаёт `APP_ENV=testing`, `DB_CONNECTIO
 
 Не запускайте test suites параллельно на одной `hackalem_testing`: миграции и транзакции будут мешать друг другу. CI поднимает PostgreSQL 18 как отдельный service container; workflow сейчас только подготовлен локально и не отправлен на GitHub.
 
-SDK fake доказывает интеграцию и запись usage, но не делает реальный tool loop. Поэтому `ToolBroker` и `ResolveApproval` тестируются непосредственно. DemoRuntime проходит через тот же broker. Любая unfaked попытка live-вызова из runtime в testing завершается ошибкой до сети.
+SDK fake доказывает интеграцию и запись usage, но не делает реальный tool loop. Поэтому `ToolBroker` и `ResolveApproval` тестируются непосредственно. DemoRuntime проходит через тот же broker. Любая unfaked попытка live-вызова из runtime в testing завершается ошибкой до сети. Для SDK fake задавайте фиктивный ключ через `config()`; выбор runtime не зависит от наличия fake. Авто-режим и демо-диалог покрыты `AgentRuntimeConfigurationTest` и `ScenarioDemoChatTest`.
 
 ## Подготовка к production
 
@@ -59,5 +59,5 @@ SDK fake доказывает интеграцию и запись usage, но �
 - Математика и правила: `app/Actions/Simulations`; страницы и общие компоненты: `resources/js/pages/scenarios`, `resources/js/components/simulation`.
 - AI: `ScenarioAnalysisAgent`, `ScenarioChatAgent`, `ScenarioFacts`, `CreateScenarioRun`; сценарные инструменты проходят через общий `ToolBroker`.
 - Целевые проверки: `php artisan test --compact --filter='SimulationCalculationTest|SimulationScenarioTest|ScenarioAiTest'`. Затем `composer ci:check`.
-- При локальной проверке используйте «Пример из задания». После смены `AGENT_DRIVER` выполните `php artisan config:clear` и перезапустите worker. `demo` выполняет тот же жизненный цикл без API; `laravel` использует ключ только на сервере.
+- При локальной проверке используйте «Пример из задания». После смены `AGENT_DRIVER` выполните `php artisan config:clear` и перезапустите worker. `auto` выбирает AI при непустом ключе выбранного провайдера, иначе полноценное демо. `demo` принудительно работает без API; `laravel` требует ключ. После изменения ключа также обновляйте конфигурацию и перезапускайте worker. Ошибки провайдера видны пользователю и повторяются только вручную.
 - `composer setup` / `app:prepare` теперь загружают городской датасет вместе с демо-доступом. Существующие данные сохраняются.

@@ -208,7 +208,7 @@ class AgentRuntimeTest extends TestCase
 
     public function test_laravel_ai_adapter_records_response_and_usage_using_sdk_fake(): void
     {
-        config(['agents.driver' => 'laravel']);
+        config(['agents.driver' => 'laravel', 'ai.providers.openai.key' => 'test-key']);
         $run = $this->createRun();
         WorkspaceAgent::fake([
             new AgentResponse('fixture', 'A tested answer', new Usage(21, 9), new Meta('openai', $run->model)),
@@ -223,7 +223,7 @@ class AgentRuntimeTest extends TestCase
 
     public function test_test_environment_refuses_unfaked_ai_calls(): void
     {
-        config(['agents.driver' => 'laravel']);
+        config(['agents.driver' => 'laravel', 'ai.providers.openai.key' => 'test-key']);
         $run = $this->createRun();
         (new ExecuteAgentRun($run->id))->handle();
         self::assertSame(RunStatus::Failed, $run->fresh()->status);

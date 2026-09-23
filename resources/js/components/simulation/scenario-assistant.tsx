@@ -1,5 +1,13 @@
 import { Link, useForm, usePoll } from '@inertiajs/react';
-import { ArrowRight, Check, Send, Sparkles, Square, X } from 'lucide-react';
+import {
+    ArrowRight,
+    Check,
+    RotateCcw,
+    Send,
+    Sparkles,
+    Square,
+    X,
+} from 'lucide-react';
 import { useEffect } from 'react';
 import { DecisionList, number } from '@/components/simulation/results';
 import { Badge } from '@/components/ui/badge';
@@ -11,11 +19,83 @@ import { analysis, compare, messages, show } from '@/routes/scenarios';
 import { map } from '@/routes';
 import { statusLabels } from '@/types/agents';
 import type {
+    AiRuntime,
     Dataset,
     Scenario,
     ScenarioApproval,
     ScenarioRun,
 } from '@/types/simulation';
+
+function RunActivity({ run }: { run: ScenarioRun }) {
+    if (!run.activity.length) return null;
+    return (
+        <details className="mt-3 text-xs text-muted-foreground">
+            <summary className="cursor-pointer">Действия агента</summary>
+            <ol className="mt-2 space-y-1 border-l pl-3">
+                {run.activity.map((event) => (
+                    <li key={event.id}>
+                        {event.type === 'approval.requested'
+                            ? 'Предложение передано на подтверждение'
+                            : `${event.tool === 'evaluate_scenario' ? 'Проверка и расчёт варианта' : 'Подготовка предложения'}: ${event.type === 'tool.started' ? 'начато' : 'завершено'}`}
+                    </li>
+                ))}
+            </ol>
+        </details>
+    );
+}
+
+function RetryRun({
+    run,
+    scenarioId,
+    returnToMap,
+    disabled,
+}: {
+    run: ScenarioRun;
+    scenarioId: string;
+    returnToMap: boolean;
+    disabled: boolean;
+}) {
+    const form = useForm({
+        input: run.input,
+        request_key: crypto.randomUUID(),
+        return_to: returnToMap ? 'map' : 'scenario',
+    });
+    return (
+        <div className="mt-3">
+            <Button
+                size="sm"
+                variant="outline"
+                disabled={disabled || form.processing}
+                onClick={() =>
+                    form.post(
+                        (run.kind === 'scenario_chat' ? messages : analysis)(
+                            scenarioId,
+                        ).url,
+                        {
+                            preserveScroll: true,
+                            onSuccess: () =>
+                                form.setData(
+                                    'request_key',
+                                    crypto.randomUUID(),
+                                ),
+                        },
+                    )
+                }
+            >
+                <RotateCcw className="size-3" /> Повторить
+            </Button>
+            {Object.values(form.errors).map((error, index) => (
+                <p
+                    key={index}
+                    role="alert"
+                    className="mt-2 text-sm text-destructive"
+                >
+                    {error}
+                </p>
+            ))}
+        </div>
+    );
+}
 
 function Proposal({
     approval,
@@ -134,6 +214,7 @@ function Proposal({
 }
 
 export function ScenarioAssistant({
+    aiRuntime,
     scenario,
     dataset,
     runs,
@@ -141,6 +222,7 @@ export function ScenarioAssistant({
     can,
     returnToMap = false,
 }: {
+    aiRuntime: AiRuntime;
     scenario: Scenario;
     dataset: Dataset;
     runs: ScenarioRun[];
@@ -154,7 +236,7 @@ export function ScenarioAssistant({
     const { start, stop } = usePoll(
         2000,
         {
-            only: ['runs', 'approvals'],
+            only: ['runs', 'approvals', 'aiRuntime'],
             data: returnToMap ? { scenario: scenario.id } : {},
         },
         { autoStart: false },
@@ -174,19 +256,41 @@ export function ScenarioAssistant({
         return_to: returnToMap ? 'map' : 'scenario',
     });
     const cancelForm = useForm({});
-    const report = [...runs]
+    const reportRun = [...runs]
         .reverse()
         .find(
             (run) =>
                 run.kind === 'scenario_analysis' &&
                 run.status === 'succeeded' &&
                 run.output_data,
-        )?.output_data;
+        );
+    const report = reportRun?.output_data;
     const chats = runs.filter((run) => run.kind === 'scenario_chat');
     const hasAnalysis = active.some((run) => run.kind === 'scenario_analysis');
     const hasChat = active.some((run) => run.kind === 'scenario_chat');
     return (
         <div className="space-y-6">
+            <div
+                role="status"
+                className="flex flex-wrap items-center gap-2 text-sm"
+            >
+                <Badge
+                    variant={
+                        aiRuntime.driver === 'demo' ? 'outline' : 'default'
+                    }
+                >
+                    {aiRuntime.driver === 'demo'
+                        ? 'Демо-режим'
+                        : 'AI подключён'}
+                </Badge>
+                <span className="text-muted-foreground">
+                    {aiRuntime.reason === 'missing_key'
+                        ? 'Ключ не указан — доступны расчёты, диалог и предложения без AI.'
+                        : aiRuntime.reason === 'forced_demo'
+                          ? 'Демо включено в настройках. Запросы к AI не отправляются.'
+                          : 'Ответы формирует AI на основе расчётов сценария.'}
+                </span>
+            </div>
             <section className="rounded-2xl border bg-card p-6">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
@@ -223,6 +327,11 @@ export function ScenarioAssistant({
                 </div>
                 {report ? (
                     <div className="mt-6 space-y-5">
+                        <Badge variant="outline">
+                            {reportRun?.driver === 'demo'
+                                ? 'Демо-разбор'
+                                : 'AI-разбор'}
+                        </Badge>
                         <p className="text-sm leading-7 whitespace-pre-wrap">
                             {report.summary}
                         </p>
@@ -287,13 +396,21 @@ export function ScenarioAssistant({
                         .slice(-1)
                         .filter((run) => run.status !== 'succeeded')
                         .map((run) => (
-                            <p
+                            <div
                                 key={run.id}
                                 className="text-sm text-muted-foreground"
                             >
                                 {statusLabels[run.status]}
                                 {run.error && `: ${run.error}`}
-                            </p>
+                                {run.status === 'failed' && can.analyze && (
+                                    <RetryRun
+                                        run={run}
+                                        scenarioId={scenario.id}
+                                        returnToMap={returnToMap}
+                                        disabled={hasAnalysis}
+                                    />
+                                )}
+                            </div>
                         ))}
                 </div>
             </section>
@@ -320,6 +437,15 @@ export function ScenarioAssistant({
                                         run.error ??
                                         statusLabels[run.status]}
                                 </p>
+                                <RunActivity run={run} />
+                                {run.status === 'failed' && can.analyze && (
+                                    <RetryRun
+                                        run={run}
+                                        scenarioId={scenario.id}
+                                        returnToMap={returnToMap}
+                                        disabled={hasChat}
+                                    />
+                                )}
                             </div>
                         </article>
                     ))}
@@ -362,6 +488,31 @@ export function ScenarioAssistant({
                         }}
                         className="space-y-3"
                     >
+                        <div
+                            className="flex flex-wrap gap-2"
+                            aria-label="Примеры вопросов"
+                        >
+                            {[
+                                'Как распределён бюджет?',
+                                'Какие риски остаются?',
+                                'Как изменились показатели районов?',
+                                'Покажи варианты улучшения',
+                            ].map((question) => (
+                                <Button
+                                    key={question}
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-auto text-left whitespace-normal"
+                                    disabled={hasChat || chatForm.processing}
+                                    onClick={() =>
+                                        chatForm.setData('input', question)
+                                    }
+                                >
+                                    {question}
+                                </Button>
+                            ))}
+                        </div>
                         <Label htmlFor="scenario-question">Ваш вопрос</Label>
                         <textarea
                             className="w-full rounded-md border bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-2 focus-visible:outline-ring"

@@ -60,7 +60,7 @@ class ScenarioAiTest extends TestCase
 
     public function test_analysis_uses_structured_fake_and_preserves_exact_calculation(): void
     {
-        config(['agents.driver' => 'laravel']);
+        config(['agents.driver' => 'laravel', 'ai.providers.openai.key' => 'test-key']);
         $run = $this->runScenario('scenario_analysis');
         $report = ['summary' => 'Приоритет — Нура.', 'strengths' => ['Социальные меры'], 'risks' => ['Транспорт'], 'tradeoffs' => ['Ограниченный бюджет'], 'recommendations' => [['alternative_id' => $run->scenario->alternatives[0]['id'], 'reason' => 'Расчёт подтверждает улучшение.']]];
         ScenarioAnalysisAgent::fake([new StructuredAgentResponse('fixture', $report, '', new Usage(120, 80), new Meta('openai', $run->model))])->preventStrayPrompts();
@@ -111,7 +111,7 @@ class ScenarioAiTest extends TestCase
 
     public function test_invalid_analysis_does_not_damage_scenario_or_expose_provider_response(): void
     {
-        config(['agents.driver' => 'laravel']);
+        config(['agents.driver' => 'laravel', 'ai.providers.openai.key' => 'test-key']);
         $run = $this->runScenario('scenario_analysis');
         ScenarioAnalysisAgent::fake([new StructuredAgentResponse('fixture', ['summary' => 'secret-provider-response'], '', new Usage(1, 1), new Meta('openai', $run->model))])->preventStrayPrompts();
         (new ExecuteAgentRun($run->id))->handle();
@@ -125,7 +125,7 @@ class ScenarioAiTest extends TestCase
 
     public function test_chat_history_is_bounded_ordered_and_scoped_to_scenario(): void
     {
-        config(['agents.driver' => 'laravel']);
+        config(['agents.driver' => 'laravel', 'ai.providers.openai.key' => 'test-key']);
         $scenario = SimulationScenario::factory()->create();
         for ($i = 0; $i < 7; $i++) {
             $previous = $this->runScenario('scenario_chat', $scenario, 'Вопрос '.$i);

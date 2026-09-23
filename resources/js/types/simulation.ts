@@ -79,6 +79,11 @@ export type Analysis = {
     tradeoffs: string[];
     recommendations: { alternative_id: string; reason: string }[];
 };
+export type AiRuntime = {
+    configured_driver: 'auto' | 'demo' | 'laravel';
+    driver: 'demo' | 'laravel';
+    reason: 'missing_key' | 'forced_demo' | null;
+};
 export type ScenarioRun = {
     id: string;
     kind: 'scenario_analysis' | 'scenario_chat';
@@ -89,6 +94,11 @@ export type ScenarioRun = {
     error: string | null;
     driver: string;
     created_at: string;
+    activity: {
+        id: number;
+        type: 'tool.started' | 'tool.completed' | 'approval.requested';
+        tool: 'evaluate_scenario' | 'propose_scenario';
+    }[];
 };
 export type ScenarioApproval = {
     id: string;

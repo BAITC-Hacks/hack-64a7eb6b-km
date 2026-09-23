@@ -6,9 +6,11 @@ use App\Actions\Simulations\CalculateScenario;
 use App\Actions\Simulations\CompareScenarios;
 use App\Actions\Simulations\CreateScenario;
 use App\Actions\Simulations\ValidateScenario;
+use App\Ai\Runtime\RuntimeConfiguration;
 use App\Http\Requests\PreviewScenarioRequest;
 use App\Http\Requests\StoreScenarioRequest;
 use App\Models\AgentRun;
+use App\Models\RunEvent;
 use App\Models\SimulationDataset;
 use App\Models\SimulationScenario;
 use App\Models\ToolApproval;
@@ -49,6 +51,7 @@ class SimulationScenarioController extends Controller
                 'scenario' => null,
                 'runs' => [],
                 'approvals' => [],
+                'aiRuntime' => Inertia::always(fn (): array => app(RuntimeConfiguration::class)->resolve()),
                 'can' => Inertia::always(fn (): array => ['create' => $dataset && Gate::allows('create', SimulationScenario::class), 'analyze' => false, 'cancel' => false, 'approve' => false]),
             ];
         }
@@ -132,7 +135,8 @@ class SimulationScenarioController extends Controller
             'scenario' => $this->summary($scenario) + ['selections' => $scenario->selections, 'alternatives' => $scenario->alternatives],
             'dataset' => $scenario->dataset->data,
             'baseline' => $calculate->handle($scenario->dataset->data, [], $scenario->calculator_version),
-            'runs' => fn () => $scenario->runs()->orderByDesc('created_at')->orderByDesc('id')->limit(50)->get()->reverse()->values()->map(fn (AgentRun $run): array => $run->only(['id', 'kind', 'input', 'output', 'output_data', 'status', 'error', 'driver', 'created_at'])),
+            'aiRuntime' => Inertia::always(fn (): array => app(RuntimeConfiguration::class)->resolve()),
+            'runs' => fn () => $scenario->runs()->with(['events' => fn ($query) => $query->whereIn('type', ['tool.started', 'tool.completed', 'approval.requested'])->orderBy('id')])->orderByDesc('created_at')->orderByDesc('id')->limit(50)->get()->reverse()->values()->map(fn (AgentRun $run): array => $this->runProps($run)),
             'approvals' => fn () => ToolApproval::query()->whereHas('run', fn ($query) => $query->where('simulation_scenario_id', $scenario->id))->with(['run:id,status', 'scenario:id,tool_approval_id'])->orderByDesc('id')->limit(20)->get()->map(fn (ToolApproval $approval): array => $approval->only(['id', 'tool', 'arguments', 'status']) + ['run_status' => $approval->run->status, 'scenario_id' => $approval->scenario?->id]),
             'can' => Inertia::always(fn (): array => [
                 'create' => Gate::allows('create', SimulationScenario::class),
@@ -140,6 +144,17 @@ class SimulationScenarioController extends Controller
                 'cancel' => auth()->user()?->can('workspace.runs.cancel') === true,
                 'approve' => Gate::allows('create', SimulationScenario::class) && auth()->user()?->can('workspace.approvals.resolve') === true,
             ]),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function runProps(AgentRun $run): array
+    {
+        return $run->only(['id', 'kind', 'input', 'output', 'status', 'error', 'driver', 'created_at']) + [
+            'output_data' => $run->kind === 'scenario_analysis' ? $run->output_data : null,
+            'activity' => $run->events
+                ->filter(fn (RunEvent $event): bool => in_array($event->data['tool'] ?? null, ['evaluate_scenario', 'propose_scenario'], true))
+                ->map(fn (RunEvent $event): array => ['id' => $event->id, 'type' => $event->type, 'tool' => $event->data['tool']])->values(),
         ];
     }
 

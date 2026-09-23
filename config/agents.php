@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'driver' => env('AGENT_DRIVER', 'demo'),
+    'driver' => env('AGENT_DRIVER', 'auto'),
     'provider' => env('AGENT_PROVIDER', 'openai'),
     'model' => env('AGENT_MODEL', 'gpt-5.4-nano'),
     'max_steps' => max(1, min(10, (int) env('AGENT_MAX_STEPS', 5))),

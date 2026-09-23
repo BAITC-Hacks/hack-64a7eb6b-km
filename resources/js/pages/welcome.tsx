@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { dashboard, map } from '@/routes';
 import { create, show } from '@/routes/scenarios';
 import type {
+    AiRuntime,
     Dataset,
     Scenario,
     ScenarioApproval,
@@ -26,6 +27,7 @@ import type {
 } from '@/types/simulation';
 
 type Props = {
+    aiRuntime: AiRuntime;
     dataset: Dataset | null;
     baseline: SimulationResult | null;
     scenario: Scenario | null;
@@ -41,6 +43,7 @@ type Props = {
 };
 
 export default function Welcome({
+    aiRuntime,
     dataset,
     baseline,
     scenario,
@@ -274,6 +277,7 @@ export default function Welcome({
                         )}
                         {scenario && dataset ? (
                             <ScenarioAssistant
+                                aiRuntime={aiRuntime}
                                 key={scenario.id}
                                 scenario={scenario}
                                 dataset={dataset}

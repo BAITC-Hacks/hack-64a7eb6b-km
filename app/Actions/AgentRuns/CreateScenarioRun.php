@@ -33,6 +33,7 @@ class CreateScenarioRun
                 throw ValidationException::withMessages(['input' => 'Дождитесь завершения текущего ответа или отмените его.']);
             }
             $messages = [];
+            $dialogue = [];
             $characters = 0;
             if ($kind === 'scenario_chat') {
                 $history = $scenario->runs()->where('user_id', $user->id)->where('kind', 'scenario_chat')->where('status', RunStatus::Succeeded)->orderByDesc('created_at')->orderByDesc('id')->limit(6)->get();
@@ -41,12 +42,22 @@ class CreateScenarioRun
                     if ($characters + $size > 24000) {
                         break;
                     }
+                    foreach (['district_id', 'alternative_id'] as $field) {
+                        $previousContext = $previous->output_data['demo_context'] ?? [];
+                        if (! array_key_exists($field, $dialogue)) {
+                            if ($previous->driver !== 'demo') {
+                                $dialogue[$field] = null;
+                            } elseif (array_key_exists($field, $previousContext)) {
+                                $dialogue[$field] = $previousContext[$field];
+                            }
+                        }
+                    }
                     $characters += $size;
                     array_unshift($messages, ['role' => 'user', 'content' => $previous->input], ['role' => 'assistant', 'content' => $previous->output ?? '']);
                 }
             }
 
-            return $this->create->handle($user, $input, $requestKey, $kind, $scenario, ['facts' => $this->facts->handle($scenario), 'messages' => $messages]);
+            return $this->create->handle($user, $input, $requestKey, $kind, $scenario, ['facts' => $this->facts->handle($scenario), 'messages' => $messages, 'dialogue' => $dialogue]);
         });
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Ai\Runtime\RuntimeConfiguration;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -13,12 +14,12 @@ class ApplicationDoctor extends Command
 
     protected $description = 'Check local application prerequisites without calling an AI provider';
 
-    public function handle(): int
+    public function handle(RuntimeConfiguration $configuration): int
     {
         $checks = [
             'PostgreSQL driver' => extension_loaded('pdo_pgsql') && config('database.default') === 'pgsql',
             'Application key' => filled(config('app.key')),
-            'Supported runtime' => in_array(config('agents.driver'), ['demo', 'laravel'], true),
+            'Supported runtime' => in_array(config('agents.driver'), ['auto', 'demo', 'laravel'], true),
             'Database queue' => config('queue.default') === 'database',
             'Queue retry_after > worker timeout' => config('queue.connections.database.retry_after') > 180,
         ];
@@ -28,13 +29,22 @@ class ApplicationDoctor extends Command
         } catch (Throwable) {
             $checks['Database and migrations'] = false;
         }
-        $checks['AI key (not needed in demo)'] = config('agents.driver') === 'demo'
-            || filled(config('ai.providers.'.config('agents.provider').'.key'));
+        $runtime = null;
+        try {
+            $runtime = $configuration->resolve();
+            $checks['AI configuration'] = $runtime['driver'] === 'demo' || $configuration->hasKey(config('agents.provider'));
+        } catch (\LogicException) {
+            $checks['AI configuration'] = false;
+        }
 
         foreach ($checks as $name => $ok) {
             $this->line(($ok ? '<info>OK</info>  ' : '<error>FAIL</error> ').$name);
         }
-        $this->line('PHP: '.PHP_VERSION.'. Runtime: '.config('agents.driver').'. No AI request was made.');
+        $this->line('PHP: '.PHP_VERSION.'. Configured runtime: '.config('agents.driver').'. Effective runtime: '.($runtime['driver'] ?? 'unavailable').'.');
+        if ($runtime['reason'] ?? null) {
+            $this->line('Demo reason: '.$runtime['reason']);
+        }
+        $this->line('No AI request was made.');
 
         return in_array(false, $checks, true) ? self::FAILURE : self::SUCCESS;
     }

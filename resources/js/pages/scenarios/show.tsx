@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { compare, create, index } from '@/routes/scenarios';
 import type {
+    AiRuntime,
     Dataset,
     Scenario,
     ScenarioApproval,
@@ -24,6 +25,7 @@ import type {
 } from '@/types/simulation';
 
 export default function ShowScenario({
+    aiRuntime,
     scenario,
     dataset,
     baseline,
@@ -31,6 +33,7 @@ export default function ShowScenario({
     approvals,
     can,
 }: {
+    aiRuntime: AiRuntime;
     scenario: Scenario;
     dataset: Dataset;
     baseline: SimulationResult;
@@ -241,6 +244,7 @@ export default function ShowScenario({
                     </section>
                 </div>
                 <ScenarioAssistant
+                    aiRuntime={aiRuntime}
                     key={scenario.id}
                     scenario={scenario}
                     dataset={dataset}

@@ -15,7 +15,7 @@ class LaravelAiRuntime implements AgentRuntime
 {
     public function execute(AgentRun $run): RunResult
     {
-        if (config('agents.driver') !== 'laravel') {
+        if (! in_array(config('agents.driver'), ['auto', 'laravel'], true)) {
             throw new LogicException('Live AI is disabled.');
         }
         $agentClass = match ($run->kind) {
@@ -27,7 +27,7 @@ class LaravelAiRuntime implements AgentRuntime
         if (app()->environment('testing') && ! $agentClass::isFaked()) {
             throw new LogicException('Tests must fake the agent; live requests are forbidden.');
         }
-        if (! $agentClass::isFaked() && blank(config('ai.providers.'.$run->provider.'.key'))) {
+        if (! app(RuntimeConfiguration::class)->hasKey($run->provider)) {
             throw new LogicException('AI provider key is not configured.');
         }
         $input = $run->kind === 'scenario_analysis'

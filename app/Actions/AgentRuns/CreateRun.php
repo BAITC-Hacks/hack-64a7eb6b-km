@@ -2,6 +2,7 @@
 
 namespace App\Actions\AgentRuns;
 
+use App\Ai\Runtime\RuntimeConfiguration;
 use App\Enums\RunStatus;
 use App\Jobs\ExecuteAgentRun;
 use App\Models\AgentRun;
@@ -41,6 +42,7 @@ class CreateRun
                 throw ValidationException::withMessages(['input' => 'Дождитесь завершения или отмените один из трёх активных запусков.']);
             }
 
+            $runtime = app(RuntimeConfiguration::class)->resolve();
             $run = AgentRun::query()->create([
                 'user_id' => $user->id,
                 'request_key' => $requestKey,
@@ -48,8 +50,8 @@ class CreateRun
                 'input' => $input,
                 'kind' => $kind,
                 'simulation_scenario_id' => $scenario?->id,
-                'context' => $context,
-                'driver' => config('agents.driver'),
+                'context' => [...$context, 'runtime' => $runtime],
+                'driver' => $runtime['driver'],
                 'provider' => config('agents.provider'),
                 'model' => config('agents.model'),
                 'prompt_version' => $promptVersion,
@@ -60,7 +62,7 @@ class CreateRun
                     'timeout' => config('agents.timeout'),
                 ],
             ]);
-            $run->record('run.queued', ['driver' => $run->driver, 'prompt_version' => $run->prompt_version]);
+            $run->record('run.queued', [...$runtime, 'prompt_version' => $run->prompt_version]);
             ExecuteAgentRun::dispatch($run->id)->afterCommit();
 
             return $run;
