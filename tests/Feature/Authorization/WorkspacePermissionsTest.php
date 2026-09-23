@@ -60,7 +60,7 @@ class WorkspacePermissionsTest extends TestCase
         $this->get(route('runs.index'))->assertRedirect(route('verification.notice'));
 
         $user->markEmailAsVerified();
-        $this->actingAs($user->fresh())->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page->component('runs/index'));
+        $this->actingAs($user->fresh())->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page->component('scenarios/index'));
     }
 
     public function test_inertia_exposes_effective_role_and_direct_permissions_without_private_user_fields(): void

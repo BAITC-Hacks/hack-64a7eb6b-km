@@ -30,7 +30,7 @@ class AgentRunController extends Controller
         Gate::authorize('viewAny', AgentRun::class);
 
         return Inertia::render('runs/index', [
-            'runs' => AgentRun::query()->where('user_id', $request->user()?->id)->latest()->paginate(15)
+            'runs' => AgentRun::query()->where('user_id', $request->user()?->id)->where('kind', 'workspace')->latest()->paginate(15)
                 ->through(fn (AgentRun $run): array => $run->only(['id', 'input', 'status', 'driver', 'created_at'])),
             'notes' => Note::query()->where('user_id', $request->user()?->id)->latest()->limit(10)->get(['id', 'title', 'body']),
             'runtime' => [
@@ -52,12 +52,16 @@ class AgentRunController extends Controller
         return to_route('runs.show', $run);
     }
 
-    public function show(AgentRun $run): Response
+    public function show(AgentRun $run): Response|RedirectResponse
     {
         Gate::authorize('view', $run);
 
+        if ($run->simulation_scenario_id !== null) {
+            return to_route('scenarios.show', $run->simulation_scenario_id);
+        }
+
         return Inertia::render('runs/show', [
-            'run' => $run,
+            'run' => $run->only(['id', 'input', 'output', 'error', 'kind', 'status', 'driver', 'provider', 'model', 'prompt_version', 'limits', 'usage', 'tool_calls', 'created_at', 'started_at', 'finished_at', 'simulation_scenario_id']),
             'events' => $run->events()->orderBy('id')->get(['id', 'type', 'data', 'created_at']),
             'approvals' => $run->approvals()->oldest()->get(['id', 'tool', 'arguments', 'status']),
             'can' => Inertia::always(fn (): array => [

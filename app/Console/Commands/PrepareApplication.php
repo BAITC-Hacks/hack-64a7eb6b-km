@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Database\Seeders\DemoAdminSeeder;
+use Database\Seeders\SimulationDatasetSeeder;
 use Illuminate\Console\Command;
 
 class PrepareApplication extends Command
@@ -26,8 +27,15 @@ class PrepareApplication extends Command
             return self::FAILURE;
         }
 
-        return $this->call('db:seed', [
+        if ($this->call('db:seed', [
             '--class' => DemoAdminSeeder::class,
+            '--no-interaction' => true,
+        ]) !== self::SUCCESS) {
+            return self::FAILURE;
+        }
+
+        return $this->call('db:seed', [
+            '--class' => SimulationDatasetSeeder::class,
             '--no-interaction' => true,
         ]);
     }

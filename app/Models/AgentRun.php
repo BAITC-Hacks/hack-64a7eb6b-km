@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property RunStatus $status
  * @property array{max_steps: int, max_tokens: int, max_tool_calls: int, timeout: int} $limits
  * @property array<string, int>|null $usage
+ * @property array<string, mixed>|null $context
+ * @property array<string, mixed>|null $output_data
  */
 class AgentRun extends Model
 {
@@ -19,12 +21,16 @@ class AgentRun extends Model
 
     protected $guarded = ['id'];
 
+    protected $attributes = ['kind' => 'workspace'];
+
     protected function casts(): array
     {
         return [
             'status' => RunStatus::class,
             'limits' => 'array',
             'usage' => 'array',
+            'context' => 'array',
+            'output_data' => 'array',
             'started_at' => 'immutable_datetime',
             'finished_at' => 'immutable_datetime',
         ];
@@ -34,6 +40,12 @@ class AgentRun extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** @return BelongsTo<SimulationScenario, $this> */
+    public function scenario(): BelongsTo
+    {
+        return $this->belongsTo(SimulationScenario::class, 'simulation_scenario_id');
     }
 
     /** @return HasMany<RunEvent, $this> */

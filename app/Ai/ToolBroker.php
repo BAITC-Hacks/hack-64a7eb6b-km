@@ -2,13 +2,17 @@
 
 namespace App\Ai;
 
+use App\Actions\Simulations\CalculateScenario;
+use App\Actions\Simulations\ValidateScenario;
 use App\Enums\RunStatus;
 use App\Models\AgentRun;
 use App\Models\Note;
+use App\Models\SimulationScenario;
 use DomainException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class ToolBroker
 {
@@ -29,7 +33,12 @@ class ToolBroker
             if ($run->tool_calls >= $run->limits['max_tool_calls']) {
                 throw new DomainException('Tool call limit reached.');
             }
-            if (! in_array($name, ['search_notes', 'propose_note'], true)) {
+            $allowed = match ($run->kind) {
+                'workspace' => ['search_notes', 'propose_note'],
+                'scenario_chat' => ['evaluate_scenario', 'propose_scenario'],
+                default => [],
+            };
+            if (! in_array($name, $allowed, true)) {
                 throw new DomainException('Tool is not allowed.');
             }
 
@@ -38,11 +47,50 @@ class ToolBroker
             $result = match ($name) {
                 'search_notes' => $this->search($run, $arguments),
                 'propose_note' => $this->propose($run, $arguments),
+                'evaluate_scenario', 'propose_scenario' => $this->simulate($run, $arguments, $name === 'propose_scenario'),
             };
-            $run->record('tool.completed', ['tool' => $name, 'count' => $result['count'] ?? null, 'approval_id' => $result['approval_id'] ?? null]);
+            $run->record('tool.completed', ['tool' => $name, 'count' => $result['count'] ?? null, 'approval_id' => $result['approval_id'] ?? null, 'evaluation' => $name === 'evaluate_scenario' ? $result : null]);
 
             return $result;
         });
+    }
+
+    /**
+     * @param  array<string, mixed>  $arguments
+     * @return array<string, mixed>
+     */
+    private function simulate(AgentRun $run, array $arguments, bool $propose): array
+    {
+        $scenario = SimulationScenario::query()->where('user_id', $run->user_id)->findOrFail($run->simulation_scenario_id);
+        if ($scenario->dataset->version !== ($run->context['facts']['dataset_version'] ?? null)) {
+            throw new DomainException('Scenario context does not match the dataset.');
+        }
+        try {
+            if (array_diff(array_keys($arguments), ['selections']) !== []) {
+                throw ValidationException::withMessages(['selections' => 'Допустим только полный набор selections.']);
+            }
+            $data = Validator::make($arguments, ['selections' => ['required', 'array', 'max:5']])->validate();
+            $selections = app(ValidateScenario::class)->handle($scenario->dataset->data, $data['selections']);
+        } catch (ValidationException $exception) {
+            return ['valid' => false, 'errors' => $exception->errors()];
+        }
+        $result = app(CalculateScenario::class)->handle($scenario->dataset->data, $selections, $scenario->calculator_version);
+        if (! $propose) {
+            return ['valid' => true, 'selections' => $selections, 'result' => $result, 'delta' => bcsub($result['score'], $scenario->result['score'], 8)];
+        }
+        $hash = hash('sha256', json_encode($selections, JSON_THROW_ON_ERROR));
+        $approval = $run->approvals()->where('tool', 'propose_scenario')->where('arguments->payload_hash', $hash)->first();
+        if (! $approval) {
+            $approval = $run->approvals()->create(['tool' => 'propose_scenario', 'arguments' => [
+                'title' => 'Вариант: '.mb_substr($scenario->title, 0, 150),
+                'source_scenario_id' => $scenario->id, 'dataset_id' => $scenario->simulation_dataset_id,
+                'calculator_version' => $scenario->calculator_version,
+                'selections' => $selections, 'result' => $result, 'payload_hash' => $hash,
+            ]]);
+            $run->record('approval.requested', ['approval_id' => $approval->id, 'tool' => 'propose_scenario']);
+        }
+
+        return ['valid' => true, 'approval_id' => $approval->id, 'status' => 'pending_human_approval', 'scenario_created' => false, 'result' => $result];
     }
 
     /** @param array<string, mixed> $arguments

@@ -50,6 +50,11 @@ class UserFactory extends Factory
         return $this->afterCreating(fn (User $user) => $user->assignRole(Role::MEMBER));
     }
 
+    public function observer(): static
+    {
+        return $this->afterCreating(fn (User $user) => $user->assignRole(Role::OBSERVER));
+    }
+
     public function unverified(): static
     {
         return $this->state(fn (array $attributes) => [

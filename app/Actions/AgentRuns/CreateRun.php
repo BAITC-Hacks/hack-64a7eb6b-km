@@ -5,6 +5,7 @@ namespace App\Actions\AgentRuns;
 use App\Enums\RunStatus;
 use App\Jobs\ExecuteAgentRun;
 use App\Models\AgentRun;
+use App\Models\SimulationScenario;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -12,11 +13,22 @@ use Illuminate\Validation\ValidationException;
 
 class CreateRun
 {
-    public function handle(User $user, string $input, string $requestKey): AgentRun
+    /** @param array<string, mixed> $context */
+    public function handle(User $user, string $input, string $requestKey, string $kind = 'workspace', ?SimulationScenario $scenario = null, array $context = []): AgentRun
     {
         Gate::forUser($user)->authorize('create', AgentRun::class);
 
-        return DB::transaction(function () use ($user, $input, $requestKey): AgentRun {
+        if ($scenario) {
+            Gate::forUser($user)->authorize('view', $scenario);
+        }
+        $promptVersion = match ($kind) {
+            'workspace' => config('agents.prompt_version'),
+            'scenario_analysis' => 'scenario-analysis-v3',
+            'scenario_chat' => 'scenario-chat-v1',
+            default => throw new \DomainException('Unsupported run kind.'),
+        };
+
+        return DB::transaction(function () use ($user, $input, $requestKey, $kind, $scenario, $context, $promptVersion): AgentRun {
             // Serialize submissions per owner, including concurrent duplicate requests.
             User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
 
@@ -34,10 +46,13 @@ class CreateRun
                 'request_key' => $requestKey,
                 'status' => RunStatus::Queued,
                 'input' => $input,
+                'kind' => $kind,
+                'simulation_scenario_id' => $scenario?->id,
+                'context' => $context,
                 'driver' => config('agents.driver'),
                 'provider' => config('agents.provider'),
                 'model' => config('agents.model'),
-                'prompt_version' => config('agents.prompt_version'),
+                'prompt_version' => $promptVersion,
                 'limits' => [
                     'max_steps' => config('agents.max_steps'),
                     'max_tokens' => config('agents.max_tokens'),

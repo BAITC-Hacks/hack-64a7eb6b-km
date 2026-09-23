@@ -57,7 +57,7 @@ class ExecuteAgentRun implements ShouldQueue
                 if (! $run || $run->status !== RunStatus::Running) {
                     return; // Cancellation always wins over an in-flight provider response.
                 }
-                $run->update(['status' => RunStatus::Succeeded, 'output' => $result->text, 'usage' => $result->usage, 'finished_at' => now()]);
+                $run->update(['status' => RunStatus::Succeeded, 'output' => $result->text, 'output_data' => $result->data, 'usage' => $result->usage, 'finished_at' => now()]);
                 $run->record('run.succeeded', ['usage' => $result->usage]);
             });
         } catch (Throwable $exception) {

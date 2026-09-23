@@ -52,3 +52,12 @@ SDK fake доказывает интеграцию и запись usage, но �
 ## Подготовка к production
 
 Нужны обычная настройка HTTPS/APP_DEBUG=false, почты, закрытого PostgreSQL, supervision для worker, scheduler, секретов и резервных копий. `app:user` намеренно работает только локально; production-доступ выдавайте своим процессом управления пользователями. Сборка и тесты этой задачи не являются deployment.
+
+## Работа с симулятором
+
+- Датасет: `database/seeders/data/astana-v1.json`, `SimulationDatasetSeeder`. Для изменения опубликованных данных создайте новую версию, не перезаписывайте старую.
+- Математика и правила: `app/Actions/Simulations`; страницы и общие компоненты: `resources/js/pages/scenarios`, `resources/js/components/simulation`.
+- AI: `ScenarioAnalysisAgent`, `ScenarioChatAgent`, `ScenarioFacts`, `CreateScenarioRun`; сценарные инструменты проходят через общий `ToolBroker`.
+- Целевые проверки: `php artisan test --compact --filter='SimulationCalculationTest|SimulationScenarioTest|ScenarioAiTest'`. Затем `composer ci:check`.
+- При локальной проверке используйте «Пример из задания». После смены `AGENT_DRIVER` выполните `php artisan config:clear` и перезапустите worker. `demo` выполняет тот же жизненный цикл без API; `laravel` использует ключ только на сервере.
+- `composer setup` / `app:prepare` теперь загружают городской датасет вместе с демо-доступом. Существующие данные сохраняются.

@@ -12,6 +12,9 @@ class DemoRuntime implements AgentRuntime
 
     public function execute(AgentRun $run): RunResult
     {
+        if ($run->kind !== 'workspace') {
+            return app(ScenarioDemoRuntime::class)->execute($run);
+        }
         $notes = $this->tools->execute($run, 'search_notes', ['query' => '']);
         $this->tools->execute($run, 'propose_note', [
             'title' => Str::limit('Демо: '.$run->input, 150),

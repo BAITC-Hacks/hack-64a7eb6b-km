@@ -14,15 +14,17 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { index as runs } from '@/routes/runs';
 import { usePermissions } from '@/hooks/use-permissions';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
     {
-        title: 'Запуски',
+        title: 'Город и сценарии',
         href: dashboard(),
         icon: LayoutGrid,
     },
+    { title: 'AI-запуски', href: runs(), icon: LayoutGrid },
 ];
 
 const footerNavItems: NavItem[] = [

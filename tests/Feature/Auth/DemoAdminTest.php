@@ -124,5 +124,6 @@ class DemoAdminTest extends TestCase
         $admin = User::query()->where('email', 'admin@hackalem.test')->sole();
         self::assertTrue($admin->isSuperAdmin());
         self::assertTrue(Hash::check('admin', $admin->password));
+        $this->assertDatabaseHas('simulation_datasets', ['version' => 'astana-v1']);
     }
 }
