@@ -2,7 +2,8 @@
 
 namespace App\Console\Commands;
 
-use Database\Seeders\DemoAdminSeeder;
+use Database\Seeders\DemoUsersSeeder;
+use Database\Seeders\GisDatasetSeeder;
 use Database\Seeders\SimulationDatasetSeeder;
 use Illuminate\Console\Command;
 
@@ -28,15 +29,18 @@ class PrepareApplication extends Command
         }
 
         if ($this->call('db:seed', [
-            '--class' => DemoAdminSeeder::class,
+            '--class' => DemoUsersSeeder::class,
             '--no-interaction' => true,
         ]) !== self::SUCCESS) {
             return self::FAILURE;
         }
 
-        return $this->call('db:seed', [
-            '--class' => SimulationDatasetSeeder::class,
-            '--no-interaction' => true,
-        ]);
+        foreach ([SimulationDatasetSeeder::class, GisDatasetSeeder::class] as $seeder) {
+            if ($this->call('db:seed', ['--class' => $seeder, '--no-interaction' => true]) !== self::SUCCESS) {
+                return self::FAILURE;
+            }
+        }
+
+        return self::SUCCESS;
     }
 }

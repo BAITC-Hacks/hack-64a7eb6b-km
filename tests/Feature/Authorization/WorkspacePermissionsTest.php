@@ -51,13 +51,13 @@ class WorkspacePermissionsTest extends TestCase
             'roles' => [Role::SUPER_ADMIN],
             'permissions' => ['admin.access', 'access.manage'],
             'email_verified_at' => now()->toDateTimeString(),
-        ])->assertRedirect(route('dashboard', absolute: false));
+        ])->assertRedirect(route('map', absolute: false));
 
         $user = User::query()->where('email', 'new-member@example.test')->sole();
-        self::assertSame([Role::MEMBER], $user->getRoleNames()->all());
+        self::assertSame([Role::AKIM], $user->getRoleNames()->all());
         self::assertFalse($user->hasVerifiedEmail());
         self::assertFalse($user->isSuperAdmin());
-        $this->get(route('runs.index'))->assertRedirect(route('verification.notice'));
+        $this->get(route('scenarios.index'))->assertRedirect(route('verification.notice'));
 
         $user->markEmailAsVerified();
         $this->actingAs($user->fresh())->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page->component('scenarios/index'));
@@ -65,11 +65,11 @@ class WorkspacePermissionsTest extends TestCase
 
     public function test_inertia_exposes_effective_role_and_direct_permissions_without_private_user_fields(): void
     {
-        $user = User::factory()->withTwoFactor()->create()->assignRole(Role::OBSERVER);
+        $user = User::factory()->withTwoFactor()->create()->assignRole(Role::ANALYST);
         $user->givePermissionTo(PermissionName::WorkspaceRunsCreate);
         $this->actingAs($user)->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
             ->where('auth.user.id', $user->id)
-            ->where('auth.roles', [Role::OBSERVER])
+            ->where('auth.roles', [Role::ANALYST])
             ->where('auth.permissions', fn ($permissions): bool => $permissions->contains(PermissionName::WorkspaceRunsCreate->value)
                 && $permissions->contains(PermissionName::WorkspaceView->value)
                 && ! $permissions->contains(PermissionName::WorkspaceRunsCancel->value))
@@ -79,8 +79,8 @@ class WorkspacePermissionsTest extends TestCase
     }
 
     #[TestWith([null, false, false])]
-    #[TestWith([Role::OBSERVER, true, false])]
-    #[TestWith([Role::MEMBER, true, true])]
+    #[TestWith([Role::ANALYST, true, false])]
+    #[TestWith([Role::AKIM, true, true])]
     #[TestWith([Role::SUPER_ADMIN, true, true])]
     public function test_roles_control_workspace_abilities_but_never_grant_access_to_other_owners(?string $role, bool $canView, bool $canWrite): void
     {
@@ -111,12 +111,10 @@ class WorkspacePermissionsTest extends TestCase
             'tool' => 'propose_note', 'status' => 'pending',
             'arguments' => ['title' => 'Own note', 'body' => 'No write allowed'],
         ]);
-        $observer->syncRoles([Role::OBSERVER]);
+        $observer->syncRoles([Role::ANALYST]);
 
-        $this->actingAs($observer->fresh())->get(route('runs.index'))->assertInertia(fn (Assert $page) => $page
-            ->has('runs.data', 1)->where('runs.data.0.id', $run->id)->has('notes', 0));
-        $this->get(route('runs.show', $run))->assertInertia(fn (Assert $page) => $page
-            ->where('can.cancel', false)->where('can.resolveApprovals', false));
+        $this->actingAs($observer->fresh())->get(route('scenarios.index'))->assertInertia(fn (Assert $page) => $page
+            ->component('scenarios/index')->where('can.create', false));
         $this->post(route('runs.store'), ['input' => 'Forbidden', 'request_key' => (string) Str::uuid()])->assertForbidden();
         $this->post(route('runs.cancel', $run))->assertForbidden();
         foreach (['approve', 'reject'] as $decision) {
@@ -135,7 +133,7 @@ class WorkspacePermissionsTest extends TestCase
         $user = User::factory()->create();
         $this->actingAs($user)->get(route('dashboard'))->assertOk()
             ->assertInertia(fn (Assert $page) => $page->component('access-denied')->missing('runs')->missing('notes'));
-        $this->get(route('runs.index'))->assertForbidden();
+        $this->get(route('scenarios.index'))->assertForbidden();
         $this->get(route('profile.edit'))->assertOk();
         $this->post(route('runs.store'), ['input' => 'Forbidden', 'request_key' => (string) Str::uuid()])->assertForbidden();
         Queue::assertNothingPushed();
@@ -147,11 +145,9 @@ class WorkspacePermissionsTest extends TestCase
         $user->givePermissionTo([PermissionName::WorkspaceView, PermissionName::WorkspaceRunsCreate]);
         $this->actingAs($user)->post(route('runs.store'), [
             'input' => 'Create only', 'request_key' => (string) Str::uuid(),
-        ])->assertRedirect();
+        ])->assertNoContent();
 
         $run = AgentRun::query()->sole();
-        $this->get(route('runs.show', $run))->assertInertia(fn (Assert $page) => $page
-            ->where('can.cancel', false)->where('can.resolveApprovals', false));
         $this->post(route('runs.cancel', $run))->assertForbidden();
 
         $user->givePermissionTo(PermissionName::WorkspaceRunsCancel);
@@ -177,21 +173,20 @@ class WorkspacePermissionsTest extends TestCase
         $user->assignRole($role);
         $run = $this->createRun($user);
 
-        $this->actingAs($user)->get(route('runs.show', $run))->assertInertia(fn (Assert $page) => $page
-            ->where('can.cancel', true)->where('can.resolveApprovals', true));
+        $this->actingAs($user)->get(route('scenarios.index'))->assertInertia(fn (Assert $page) => $page
+            ->where('can.create', true));
 
         $role->syncPermissions([PermissionName::WorkspaceView]);
         $user->givePermissionTo(PermissionName::WorkspaceApprovalsResolve);
-        $response = $this->actingAs($user->fresh())->get(route('runs.show', $run), [
-            'X-Inertia' => 'true', 'X-Inertia-Partial-Component' => 'runs/show',
-            'X-Inertia-Partial-Data' => 'events',
+        $response = $this->actingAs($user->fresh())->get(route('scenarios.index'), [
+            'X-Inertia' => 'true', 'X-Inertia-Partial-Component' => 'scenarios/index',
+            'X-Inertia-Partial-Data' => 'scenarios',
             'X-Inertia-Version' => Inertia::getVersion(),
         ]);
         $response->assertOk()
-            ->assertJsonPath('props.can.cancel', false)
-            ->assertJsonPath('props.can.resolveApprovals', true)
+            ->assertJsonPath('props.can.create', false)
             ->assertJsonPath('props.auth.roles', [$role->name])
-            ->assertJsonMissingPath('props.run');
+            ->assertJsonMissingPath('props.dataset');
         self::assertNotContains(PermissionName::WorkspaceRunsCreate->value, $response->json('props.auth.permissions'));
         self::assertContains(PermissionName::WorkspaceApprovalsResolve->value, $response->json('props.auth.permissions'));
 
@@ -200,7 +195,7 @@ class WorkspacePermissionsTest extends TestCase
 
         $role->syncPermissions([]);
         $user->syncPermissions([]);
-        $this->actingAs($user->fresh())->get(route('runs.show', $run))->assertForbidden();
+        $this->actingAs($user->fresh())->get(route('scenarios.index'))->assertForbidden();
     }
 
     public function test_upgrade_preserves_unassigned_users_without_expanding_custom_roles(): void
@@ -213,7 +208,7 @@ class WorkspacePermissionsTest extends TestCase
         $migration = require database_path('migrations/2026_09_22_203055_add_workspace_permissions.php');
         $migration->up();
 
-        self::assertTrue($legacy->fresh()->hasRole(Role::MEMBER));
+        self::assertTrue($legacy->fresh()->hasRole(Role::AKIM));
         self::assertFalse($custom->fresh()->can(PermissionName::WorkspaceView));
         self::assertFalse($direct->fresh()->can(PermissionName::WorkspaceView));
     }
@@ -221,7 +216,7 @@ class WorkspacePermissionsTest extends TestCase
     public function test_default_member_rights_can_be_configured_and_are_not_reset_by_seeding(): void
     {
         $admin = User::factory()->administrator()->create();
-        $member = Role::findByName(Role::MEMBER);
+        $member = Role::findByName(Role::AKIM);
         $view = Permission::findByName(PermissionName::WorkspaceView);
         Filament::setCurrentPanel(Filament::getPanel('admin'));
         $this->actingAs($admin);
@@ -240,7 +235,7 @@ class WorkspacePermissionsTest extends TestCase
     {
         $admin = User::factory()->administrator()->create();
         $this->expectException(ValidationException::class);
-        app(SaveRole::class)->handle($admin, Role::findByName(Role::MEMBER), [
+        app(SaveRole::class)->handle($admin, Role::findByName(Role::AKIM), [
             'name' => 'Renamed', 'permission_ids' => [],
         ]);
     }

@@ -20,6 +20,6 @@ class ScenarioMessageRequest extends FormRequest
     /** @return array<string, list<string>> */
     public function rules(): array
     {
-        return ['input' => ['required', 'string', 'max:2000'], 'request_key' => ['required', 'uuid']];
+        return ['input' => ['required', 'string', 'max:2000'], 'request_key' => ['required', 'uuid'], 'return_to' => ['nullable', 'in:map,scenario']];
     }
 }

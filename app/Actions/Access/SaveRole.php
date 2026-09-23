@@ -21,7 +21,7 @@ class SaveRole
             $role = $record ? Role::query()->lockForUpdate()->findOrFail($record->id) : new Role;
             Gate::forUser($actor)->authorize($record ? 'update' : 'create', $record ? $role : Role::class);
             $validated = Validator::make($data, [
-                'name' => ['required', 'string', 'max:255', Rule::unique('roles')->where('guard_name', 'web')->ignore($role), Rule::when($role->isDefaultMember(), [Rule::in([Role::MEMBER])])],
+                'name' => ['required', 'string', 'max:255', Rule::unique('roles')->where('guard_name', 'web')->ignore($role), Rule::when($role->isDefaultRole(), [Rule::in([Role::AKIM])])],
                 'permission_ids' => ['present', 'array'],
                 'permission_ids.*' => ['integer', Rule::exists('permissions', 'id')->where('guard_name', 'web')->whereIn('name', array_column(AccessPermission::cases(), 'value'))],
             ])->validate();

@@ -17,12 +17,14 @@ class ScenarioAiController extends Controller
     {
         Gate::authorize('view', $scenario);
         Gate::authorize('create', AgentRun::class);
-        $request->validate(['request_key' => ['required', 'uuid']]);
+        $request->validate(['request_key' => ['required', 'uuid'], 'return_to' => ['nullable', 'in:map,scenario']]);
         /** @var User $user */
         $user = $request->user();
         $create->handle($user, $scenario, 'scenario_analysis', 'Объясни результат сценария, его сильные стороны, риски, компромиссы и проверенные улучшения.', $request->string('request_key')->toString());
 
-        return to_route('scenarios.show', $scenario);
+        return $request->input('return_to') === 'map'
+            ? to_route('map', ['scenario' => $scenario->id])
+            : to_route('scenarios.show', $scenario);
     }
 
     public function message(ScenarioMessageRequest $request, SimulationScenario $scenario, CreateScenarioRun $create): RedirectResponse
@@ -31,6 +33,8 @@ class ScenarioAiController extends Controller
         $user = $request->user();
         $create->handle($user, $scenario, 'scenario_chat', $request->string('input')->toString(), $request->string('request_key')->toString());
 
-        return to_route('scenarios.show', $scenario);
+        return $request->input('return_to') === 'map'
+            ? to_route('map', ['scenario' => $scenario->id])
+            : to_route('scenarios.show', $scenario);
     }
 }

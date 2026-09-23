@@ -68,6 +68,7 @@ export default defineConfig({
             'public/**',
             'vendor/**',
             'composer.json',
+            'database/seeders/data/gis-astana/**',
             'resources/js/components/ui/*',
             'resources/views/mail/*',
         ],

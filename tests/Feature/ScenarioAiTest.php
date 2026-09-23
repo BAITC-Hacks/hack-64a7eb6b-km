@@ -25,6 +25,7 @@ use Laravel\Ai\Responses\AgentResponse;
 use Laravel\Ai\Responses\Data\Meta;
 use Laravel\Ai\Responses\Data\Usage;
 use Laravel\Ai\Responses\StructuredAgentResponse;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\TestCase;
 
 class ScenarioAiTest extends TestCase
@@ -54,7 +55,7 @@ class ScenarioAiTest extends TestCase
         Queue::assertPushed(ExecuteAgentRun::class, 1);
         $this->postJson(route('scenarios.messages', $scenario), [...$payload, 'request_key' => (string) Str::uuid()])->assertUnprocessable()->assertJsonValidationErrors('input');
         $this->postJson(route('scenarios.messages', $scenario), [...$payload, 'input' => 'Другое'])->assertConflict();
-        $this->get(route('runs.show', $run))->assertRedirect(route('scenarios.show', $scenario));
+        $this->get('/runs/'.$run->id)->assertNotFound();
     }
 
     public function test_analysis_uses_structured_fake_and_preserves_exact_calculation(): void
@@ -71,6 +72,41 @@ class ScenarioAiTest extends TestCase
         self::assertSame('56.54307000', $run->scenario->result['score']);
         ScenarioAnalysisAgent::assertPrompted(fn (AgentPrompt $prompt) => str_contains($prompt->prompt, '56.54307000'));
         $this->actingAs($run->user)->get(route('scenarios.show', $run->scenario))->assertInertia(fn (Assert $page) => $page->where('runs.0.output_data.summary', $report['summary'])->missing('runs.0.context'));
+        $this->get(route('map', ['scenario' => $run->simulation_scenario_id]))->assertInertia(fn (Assert $page) => $page
+            ->component('welcome')->where('runs.0.output_data.summary', $report['summary'])->missing('runs.0.context'));
+    }
+
+    #[TestWith(['scenarios.analysis', 'scenario_analysis'])]
+    #[TestWith(['scenarios.messages', 'scenario_chat'])]
+    public function test_map_submissions_queue_the_saved_scenario_and_return_to_its_map(string $route, string $kind): void
+    {
+        $scenario = SimulationScenario::factory()->create();
+
+        $this->actingAs($scenario->user)->post(route($route, $scenario), [
+            'input' => 'Объясни мой сценарий', 'request_key' => (string) Str::uuid(), 'return_to' => 'map',
+        ])->assertRedirect(route('map', ['scenario' => $scenario->id]));
+
+        $run = AgentRun::query()->sole();
+        self::assertSame($kind, $run->kind);
+        self::assertSame($scenario->id, $run->simulation_scenario_id);
+        self::assertSame($scenario->user_id, $run->user_id);
+        Queue::assertPushed(ExecuteAgentRun::class, 1);
+    }
+
+    public function test_map_history_and_proposals_belong_only_to_the_selected_scenario(): void
+    {
+        $run = $this->runScenario();
+        $run->update(['status' => RunStatus::Running]);
+        app(ToolBroker::class)->execute($run, 'propose_scenario', ['selections' => $run->scenario->alternatives[0]['selections']]);
+        $run->update(['status' => RunStatus::Succeeded, 'output' => 'Сохранённый ответ']);
+        $other = $this->runScenario('scenario_chat', SimulationScenario::factory()->for($run->user)->create());
+        $other->update(['status' => RunStatus::Succeeded, 'output' => 'Ответ другого сценария']);
+
+        $this->actingAs($run->user)->get(route('map', ['scenario' => $run->simulation_scenario_id]))
+            ->assertInertia(fn (Assert $page) => $page->has('runs', 1)
+                ->where('runs.0.id', $run->id)->where('runs.0.output', 'Сохранённый ответ')
+                ->has('approvals', 1)->where('approvals.0.id', $run->approvals()->sole()->id)
+                ->missing('runs.0.context')->missing('runs.0.user_id'));
     }
 
     public function test_invalid_analysis_does_not_damage_scenario_or_expose_provider_response(): void

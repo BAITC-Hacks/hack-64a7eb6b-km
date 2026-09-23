@@ -13,13 +13,18 @@ class Role extends BaseRole
 
     public const SUPER_ADMIN = 'super_admin';
 
-    public const OBSERVER = 'Наблюдатель';
+    public const ANALYST = 'Аналитик';
 
-    public const MEMBER = 'Участник';
+    public const AKIM = 'Аким (Городской управленец)';
 
-    public function isDefaultMember(): bool
+    /** Legacy aliases used by historical migrations. */
+    public const OBSERVER = self::ANALYST;
+
+    public const MEMBER = self::AKIM;
+
+    public function isDefaultRole(): bool
     {
-        return $this->name === self::MEMBER && $this->guard_name === 'web';
+        return $this->name === self::AKIM && $this->guard_name === 'web';
     }
 
     public function isSuperAdmin(): bool

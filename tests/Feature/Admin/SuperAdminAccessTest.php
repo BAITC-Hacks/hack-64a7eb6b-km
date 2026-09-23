@@ -46,13 +46,13 @@ class SuperAdminAccessTest extends TestCase
         $form = Livewire::test(EditUser::class, ['record' => $target->id])
             ->fillForm(['name' => 'Should not be saved']);
 
-        $admin->syncRoles([Role::MEMBER]);
+        $admin->syncRoles([Role::AKIM]);
         $this->actingAs($admin->fresh());
         $form->call('save')->assertForbidden();
 
         self::assertSame($target->name, $target->fresh()->name);
         $this->get('/admin')->assertForbidden();
-        $this->get(route('runs.index'))->assertOk();
+        $this->get(route('scenarios.index'))->assertOk();
     }
 
     public function test_only_frontend_permissions_can_be_selected_or_assigned_to_roles(): void
@@ -100,7 +100,7 @@ class SuperAdminAccessTest extends TestCase
         $admin = User::factory()->administrator()->create(['email' => EnsureDemoAdmin::EMAIL]);
         $adminRole = Role::findByName(Role::SUPER_ADMIN);
         $adminRole->update(['name' => 'Администратор']);
-        $observer = Role::findByName(Role::OBSERVER);
+        $observer = Role::findByName(Role::ANALYST);
         $observer->syncPermissions([AccessPermission::WorkspaceRunsCancel]);
         $frontendUser = User::factory()->create()->assignRole($observer);
 
@@ -138,7 +138,7 @@ class SuperAdminAccessTest extends TestCase
 
         self::assertSame(['super_admin'], $legacyAdmin->fresh()->getRoleNames()->all());
         self::assertSame(['super_admin'], $existingAdmin->fresh()->getRoleNames()->all());
-        self::assertSame([Role::MEMBER], $member->fresh()->getRoleNames()->all());
+        self::assertSame([Role::AKIM], $member->fresh()->getRoleNames()->all());
         self::assertFalse($member->fresh()->canAccessAdmin());
         $this->assertModelMissing($legacy);
         $this->assertDatabaseCount('model_has_roles', 3);

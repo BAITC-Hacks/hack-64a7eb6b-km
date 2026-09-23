@@ -14,12 +14,43 @@ import { request } from '@/routes/password';
 type Props = {
     status?: string;
     canResetPassword: boolean;
+    demoUsers: { role: string; email: string; password: string }[];
 };
 
-export default function Login({ status, canResetPassword }: Props) {
+export default function Login({ status, canResetPassword, demoUsers }: Props) {
     return (
         <>
             <Head title="Log in" />
+
+            {demoUsers.length > 0 && (
+                <section
+                    aria-labelledby="demo-users-heading"
+                    className="rounded-lg border bg-muted/50 p-4 text-sm"
+                >
+                    <h2 id="demo-users-heading" className="font-semibold">
+                        Демо-пользователи
+                    </h2>
+                    <ul className="mt-3 grid gap-3">
+                        {demoUsers.map((user) => (
+                            <li key={user.email} className="grid gap-1">
+                                <p className="font-medium">{user.role}</p>
+                                <p className="wrap-anywhere text-muted-foreground">
+                                    Логин:{' '}
+                                    <code className="text-foreground">
+                                        {user.email}
+                                    </code>
+                                </p>
+                                <p className="text-muted-foreground">
+                                    Пароль:{' '}
+                                    <code className="text-foreground">
+                                        {user.password}
+                                    </code>
+                                </p>
+                            </li>
+                        ))}
+                    </ul>
+                </section>
+            )}
 
             <Form
                 {...store.form()}

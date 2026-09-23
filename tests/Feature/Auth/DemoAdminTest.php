@@ -30,7 +30,7 @@ class DemoAdminTest extends TestCase
 
         $this->seed();
 
-        $this->assertDatabaseCount('users', 1);
+        $this->assertDatabaseCount('users', 3);
         self::assertTrue($admin->fresh()->isSuperAdmin());
         self::assertTrue($admin->fresh()->hasVerifiedEmail());
         self::assertTrue(Hash::check('admin', $passwordHash));

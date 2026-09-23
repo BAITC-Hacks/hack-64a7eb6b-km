@@ -21,16 +21,16 @@ class AccessControlSeeder extends Seeder
         $admin = Role::findOrCreate(Role::SUPER_ADMIN, 'web');
         $admin->syncPermissions(AccessPermission::workspace());
 
-        $observer = Role::query()->firstOrCreate(['name' => Role::OBSERVER, 'guard_name' => 'web']);
+        $analyst = Role::query()->firstOrCreate(['name' => Role::ANALYST, 'guard_name' => 'web']);
 
-        if ($observer->wasRecentlyCreated) {
-            $observer->syncPermissions([AccessPermission::WorkspaceView]);
+        if ($analyst->wasRecentlyCreated) {
+            $analyst->syncPermissions([AccessPermission::WorkspaceView]);
         }
 
-        $member = Role::query()->firstOrCreate(['name' => Role::MEMBER, 'guard_name' => 'web']);
+        $akim = Role::query()->firstOrCreate(['name' => Role::AKIM, 'guard_name' => 'web']);
 
-        if ($member->wasRecentlyCreated) {
-            $member->syncPermissions(AccessPermission::workspace());
+        if ($akim->wasRecentlyCreated) {
+            $akim->syncPermissions(AccessPermission::workspace());
         }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();

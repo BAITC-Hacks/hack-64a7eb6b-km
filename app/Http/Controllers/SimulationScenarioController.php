@@ -22,6 +22,42 @@ use Inertia\Response;
 
 class SimulationScenarioController extends Controller
 {
+    public function map(Request $request, CalculateScenario $calculate): Response
+    {
+        if (Gate::denies('viewAny', SimulationScenario::class)) {
+            return Inertia::render('access-denied');
+        }
+
+        $request->validate(['scenario' => ['nullable', 'ulid']]);
+        $ownedScenarios = SimulationScenario::query()->where('user_id', $request->user()?->id);
+        $scenario = $request->filled('scenario')
+            ? (clone $ownedScenarios)->findOrFail($request->string('scenario')->toString())
+            : (clone $ownedScenarios)->orderByDesc('created_at')->orderByDesc('id')->first();
+        $recentScenarios = (clone $ownedScenarios)->orderByDesc('created_at')->orderByDesc('id')->limit(12)->get(['id', 'title']);
+        if ($scenario && ! $recentScenarios->contains('id', $scenario->id)) {
+            $recentScenarios->prepend($scenario);
+        }
+
+        if ($scenario) {
+            Gate::authorize('view', $scenario);
+            $props = $this->scenarioProps($scenario, $calculate);
+        } else {
+            $dataset = SimulationDataset::query()->where('version', 'astana-v1')->first();
+            $props = [
+                'dataset' => $dataset?->data,
+                'baseline' => $dataset ? $calculate->handle($dataset->data, []) : null,
+                'scenario' => null,
+                'runs' => [],
+                'approvals' => [],
+                'can' => Inertia::always(fn (): array => ['create' => $dataset && Gate::allows('create', SimulationScenario::class), 'analyze' => false, 'cancel' => false, 'approve' => false]),
+            ];
+        }
+
+        return Inertia::render('welcome', $props + [
+            'recentScenarios' => fn () => $recentScenarios->map(fn (SimulationScenario $item): array => $item->only(['id', 'title'])),
+        ]);
+    }
+
     public function dashboard(Request $request, CalculateScenario $calculate): Response
     {
         if (Gate::denies('viewAny', SimulationScenario::class)) {
@@ -86,7 +122,13 @@ class SimulationScenarioController extends Controller
     {
         Gate::authorize('view', $scenario);
 
-        return Inertia::render('scenarios/show', [
+        return Inertia::render('scenarios/show', $this->scenarioProps($scenario, $calculate));
+    }
+
+    /** @return array<string, mixed> */
+    private function scenarioProps(SimulationScenario $scenario, CalculateScenario $calculate): array
+    {
+        return [
             'scenario' => $this->summary($scenario) + ['selections' => $scenario->selections, 'alternatives' => $scenario->alternatives],
             'dataset' => $scenario->dataset->data,
             'baseline' => $calculate->handle($scenario->dataset->data, [], $scenario->calculator_version),
@@ -98,7 +140,7 @@ class SimulationScenarioController extends Controller
                 'cancel' => auth()->user()?->can('workspace.runs.cancel') === true,
                 'approve' => Gate::allows('create', SimulationScenario::class) && auth()->user()?->can('workspace.approvals.resolve') === true,
             ]),
-        ]);
+        ];
     }
 
     public function compare(Request $request, CompareScenarios $compare): Response

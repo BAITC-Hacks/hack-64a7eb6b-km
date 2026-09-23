@@ -51,7 +51,7 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently --kill-others -n web,agents,scheduler,vite \"php artisan serve --host=127.0.0.1\" \"php artisan queue:work --queue=agents,default --tries=1 --timeout=180\" \"php artisan schedule:work\" \"npm run dev -- --host=127.0.0.1\""
+            "npx concurrently --kill-others -n web,agents,gis,scheduler,vite \"php artisan serve --host=127.0.0.1\" \"php artisan queue:work --queue=agents,default --tries=1 --timeout=180\" \"php artisan queue:listen --queue=gis --tries=4 --timeout=190 --memory=1024\" \"php artisan schedule:work\" \"npm run dev -- --host=127.0.0.1\""
         ],
         "lint": [
             "pint"
@@ -66,6 +66,7 @@
             "@types:check",
             "npm run check",
             "npm run types:check",
+            "npm run test:simulator",
             "@test",
             "npm run build"
         ],

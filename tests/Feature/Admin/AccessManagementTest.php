@@ -38,7 +38,7 @@ class AccessManagementTest extends TestCase
     public function test_admin_can_create_edit_and_delete_a_user_with_roles_and_direct_permissions(): void
     {
         $admin = User::factory()->administrator()->create();
-        $observer = Role::findByName(Role::OBSERVER);
+        $observer = Role::findByName(Role::ANALYST);
         $this->actingAs($admin);
 
         Livewire::test(CreateUser::class)->fillForm([
@@ -53,7 +53,7 @@ class AccessManagementTest extends TestCase
         $user = User::query()->where('email', 'member@example.test')->sole();
         self::assertTrue(Hash::check('valid-test-password', $user->password));
         self::assertTrue($user->hasVerifiedEmail());
-        self::assertTrue($user->hasRole(Role::OBSERVER));
+        self::assertTrue($user->hasRole(Role::ANALYST));
         self::assertTrue($user->can(PermissionName::WorkspaceRunsCancel));
         $hash = $user->password;
 
@@ -85,7 +85,7 @@ class AccessManagementTest extends TestCase
 
         $role = Role::findByName('Оператор');
         $operator = User::factory()->create()->assignRole($role);
-        $this->actingAs($operator)->get(route('runs.index'))->assertOk();
+        $this->actingAs($operator)->get(route('scenarios.index'))->assertOk();
         $this->get('/admin')->assertForbidden();
         self::assertTrue($operator->can(PermissionName::WorkspaceRunsCreate));
 
@@ -95,14 +95,14 @@ class AccessManagementTest extends TestCase
             'permission_ids' => [],
         ])->call('save')->assertHasNoFormErrors();
 
-        $this->actingAs($operator->fresh())->get(route('runs.index'))->assertForbidden();
+        $this->actingAs($operator->fresh())->get(route('scenarios.index'))->assertForbidden();
         self::assertFalse($operator->fresh()->can(PermissionName::WorkspaceRunsCreate));
     }
 
     #[TestWith([Role::SUPER_ADMIN, true, true])]
     #[TestWith([Role::SUPER_ADMIN, false, false])]
-    #[TestWith([Role::OBSERVER, true, false])]
-    #[TestWith([Role::MEMBER, true, false])]
+    #[TestWith([Role::ANALYST, true, false])]
+    #[TestWith([Role::AKIM, true, false])]
     #[TestWith([null, true, false])]
     public function test_only_verified_super_admin_can_enter_and_manage_the_panel(?string $role, bool $verified, bool $allowed): void
     {
@@ -127,7 +127,7 @@ class AccessManagementTest extends TestCase
             $reader->givePermissionTo(Permission::findOrCreate($name, 'web'));
         }
         $target = User::factory()->create();
-        $role = Role::findByName(Role::OBSERVER);
+        $role = Role::findByName(Role::ANALYST);
         $this->actingAs($reader);
 
         foreach (['', '/agent-runs', '/users', '/roles', '/permissions'] as $path) {
@@ -189,7 +189,7 @@ class AccessManagementTest extends TestCase
         ])->call('create')->assertHasNoFormErrors();
 
         $user = User::query()->where('email', 'default-member@example.test')->sole();
-        self::assertSame([Role::MEMBER], $user->getRoleNames()->all());
+        self::assertSame([Role::AKIM], $user->getRoleNames()->all());
         self::assertTrue($user->can(PermissionName::WorkspaceView));
         self::assertFalse($user->canAccessPanel(Filament::getPanel('admin')));
     }
@@ -252,7 +252,7 @@ class AccessManagementTest extends TestCase
 
     public function test_seed_repetition_preserves_custom_role_permissions(): void
     {
-        $observer = Role::findByName(Role::OBSERVER);
+        $observer = Role::findByName(Role::ANALYST);
         $observer->syncPermissions([PermissionName::WorkspaceRunsCancel]);
         $this->seed(AccessControlSeeder::class);
         $this->seed(AccessControlSeeder::class);

@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowRight, GitCompareArrows, Plus } from 'lucide-react';
+import { ArrowRight, GitCompareArrows, Map, Plus } from 'lucide-react';
 import { useState } from 'react';
 import {
     DistrictCharts,
@@ -10,6 +10,7 @@ import {
     number,
 } from '@/components/simulation/results';
 import { Button } from '@/components/ui/button';
+import { map } from '@/routes';
 import { index, create, show, compare } from '@/routes/scenarios';
 import type { Dataset, Scenario, SimulationResult } from '@/types/simulation';
 
@@ -174,6 +175,17 @@ export default function Scenarios({
                                         <strong className="text-xl tabular-nums">
                                             {number(scenario.result.score)}
                                         </strong>
+                                        <Link
+                                            href={map({
+                                                query: {
+                                                    scenario: scenario.id,
+                                                },
+                                            })}
+                                            aria-label={`На карте: ${scenario.title}`}
+                                            title="На карте"
+                                        >
+                                            <Map className="size-4" />
+                                        </Link>
                                         <Link
                                             href={show(scenario.id)}
                                             aria-label={`Открыть: ${scenario.title}`}

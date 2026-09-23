@@ -15,8 +15,8 @@ class RoleForm
     {
         return $schema->components([
             TextInput::make('name')->label('Название роли')->required()->maxLength(255)->unique(ignoreRecord: true)->columnSpanFull()
-                ->readOnly(fn (?Role $record): bool => $record?->isDefaultMember() ?? false)
-                ->helperText(fn (?Role $record): ?string => $record?->isDefaultMember() ? 'Назначается новым пользователям. Название фиксировано, разрешения можно менять.' : null),
+                ->readOnly(fn (?Role $record): bool => $record?->isDefaultRole() ?? false)
+                ->helperText(fn (?Role $record): ?string => $record?->isDefaultRole() ? 'Назначается новым пользователям. Название фиксировано, разрешения можно менять.' : null),
             Section::make('Разрешения')
                 ->description('Разрешения действуют на фронтенде. Для входа в админпанель нужна роль super_admin. Изменения применяются ко всем пользователям роли.')
                 ->schema([

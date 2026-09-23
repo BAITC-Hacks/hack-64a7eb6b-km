@@ -44,7 +44,7 @@ class CreateApplicationUser extends Command
         if ($this->option('admin')) {
             $user->assignRole(Role::SUPER_ADMIN);
         } else {
-            $user->assignRole(Role::MEMBER);
+            $user->assignRole(Role::AKIM);
         }
         $this->info('Verified user created. Sign in at /login'.($user->isSuperAdmin() ? ' or /admin/login.' : '.'));
 

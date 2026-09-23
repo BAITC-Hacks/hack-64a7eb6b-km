@@ -52,7 +52,7 @@ class SaveUser
             if (array_key_exists('role_ids', $validated)) {
                 $user->syncRoles(Role::query()->whereIn('id', $validated['role_ids'])->get());
             } elseif (! $record) {
-                $user->assignRole(Role::MEMBER);
+                $user->assignRole(Role::AKIM);
             }
             if (array_key_exists('permission_ids', $validated)) {
                 $user->syncPermissions(Permission::query()->whereIn('id', $validated['permission_ids'])->get());

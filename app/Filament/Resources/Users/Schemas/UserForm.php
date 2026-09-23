@@ -34,7 +34,7 @@ class UserForm
                 ->schema([
                     Select::make('role_ids')->label('Роли')->placeholder('Выберите роли')->multiple()->searchable()->preload()
                         ->options(fn (): array => Role::query()->where('guard_name', 'web')->orderBy('name')->pluck('name', 'id')->all())
-                        ->default(fn (): array => [Role::findByName(Role::MEMBER, 'web')->id]),
+                        ->default(fn (): array => [Role::findByName(Role::AKIM, 'web')->id]),
                     CheckboxList::make('permission_ids')->label('Дополнительные разрешения')
                         ->options(fn (): array => Permission::options())->columns(2)->default([])
                         ->helperText('Дополняют права ролей только для этого пользователя.'),

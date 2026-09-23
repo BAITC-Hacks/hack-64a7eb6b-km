@@ -17,7 +17,6 @@ use DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
-use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Ai\Prompts\AgentPrompt;
 use Laravel\Ai\Responses\AgentResponse;
 use Laravel\Ai\Responses\Data\Meta;
@@ -40,12 +39,22 @@ class AgentRuntimeTest extends TestCase
         $this->assertDatabaseCount('agent_runs', 0);
     }
 
+    public function test_run_pages_are_removed_without_redirecting(): void
+    {
+        $run = $this->createRun();
+
+        $this->actingAs($run->user)->get('/runs')->assertMethodNotAllowed();
+        $this->get('/runs/'.$run->id)->assertNotFound();
+
+        $this->assertModelExists($run);
+    }
+
     public function test_submission_is_idempotent_and_configuration_is_selected_by_server(): void
     {
         $user = User::factory()->member()->create();
         $payload = ['input' => 'Plan a task', 'request_key' => (string) Str::uuid(), 'driver' => 'laravel', 'user_id' => 999, 'model' => 'untrusted'];
-        $this->actingAs($user)->post(route('runs.store'), $payload)->assertSessionHasNoErrors();
-        $this->post(route('runs.store'), $payload)->assertSessionHasNoErrors();
+        $this->actingAs($user)->post(route('runs.store'), $payload)->assertNoContent()->assertSessionHasNoErrors();
+        $this->post(route('runs.store'), $payload)->assertNoContent()->assertSessionHasNoErrors();
 
         $this->assertDatabaseCount('agent_runs', 1);
         $run = AgentRun::query()->sole();
@@ -74,10 +83,9 @@ class AgentRuntimeTest extends TestCase
         (new ExecuteAgentRun($run->id))->handle();
         $approval = $run->approvals()->sole();
         $this->actingAs(User::factory()->member()->create());
-        $this->get(route('runs.show', $run))->assertForbidden();
+        $this->get('/runs/'.$run->id)->assertNotFound();
         $this->post(route('runs.cancel', $run))->assertForbidden();
         $this->post(route('approvals.update', $approval), ['decision' => 'approve'])->assertForbidden();
-        $this->get(route('runs.index'))->assertInertia(fn (Assert $page) => $page->has('runs.data', 0)->has('notes', 0));
     }
 
     public function test_demo_runs_real_tools_but_does_not_apply_a_write(): void
@@ -244,7 +252,7 @@ class AgentRuntimeTest extends TestCase
         $this->actingAs($admin)->get('/admin/agent-runs')->assertOk();
         $this->get('/admin/agent-runs/'.$run->id)->assertOk();
         $this->get('/admin/agent-runs/'.$run->id.'/edit')->assertNotFound();
-        $this->get(route('runs.show', $run))->assertForbidden();
+        $this->get('/runs/'.$run->id)->assertNotFound();
     }
 
     private function createRun(?User $user = null): AgentRun

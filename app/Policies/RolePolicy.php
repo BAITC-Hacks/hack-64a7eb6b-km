@@ -29,7 +29,7 @@ class RolePolicy
 
     public function delete(User $user, Role $role): bool
     {
-        return $this->update($user, $role) && ! $role->isDefaultMember() && ! $role->users()->exists();
+        return $this->update($user, $role) && ! $role->isDefaultRole() && ! $role->users()->exists();
     }
 
     public function deleteAny(User $user): bool

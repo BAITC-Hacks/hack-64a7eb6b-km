@@ -12,7 +12,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard, home } from '@/routes';
+import { dashboard, map } from '@/routes';
 import { usePermissions } from '@/hooks/use-permissions';
 import type { NavItem } from '@/types';
 
@@ -22,7 +22,7 @@ const mainNavItems: NavItem[] = [
         href: dashboard(),
         icon: LayoutGrid,
     },
-    { title: 'Карта', href: home(), icon: Map },
+    { title: 'Карта', href: map(), icon: Map },
 ];
 
 export function AppSidebar() {

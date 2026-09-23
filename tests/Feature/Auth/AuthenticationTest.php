@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Fortify\Features;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\TestCase;
 
 class AuthenticationTest extends TestCase
@@ -29,7 +30,32 @@ class AuthenticationTest extends TestCase
         ]);
 
         $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $response->assertRedirect(route('map', absolute: false));
+    }
+
+    #[TestWith(['home'])]
+    #[TestWith(['login'])]
+    public function test_authenticated_users_are_redirected_from_login_pages_to_the_map(string $route): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get(route($route));
+
+        $response->assertRedirect(route('map'));
+    }
+
+    public function test_login_preserves_the_intended_destination(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->withSession(['url.intended' => route('profile.edit')])
+            ->post(route('login.store'), [
+                'email' => $user->email,
+                'password' => 'password',
+            ]);
+
+        $this->assertAuthenticatedAs($user);
+        $response->assertRedirect(route('profile.edit'));
     }
 
     public function test_users_with_two_factor_enabled_are_redirected_to_two_factor_challenge()
@@ -57,12 +83,13 @@ class AuthenticationTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $this->post(route('login.store'), [
+        $response = $this->from(route('home'))->post(route('login.store'), [
             'email' => $user->email,
             'password' => 'wrong-password',
         ]);
 
         $this->assertGuest();
+        $response->assertRedirect(route('home'))->assertSessionHasErrors('email');
     }
 
     public function test_users_can_logout()
